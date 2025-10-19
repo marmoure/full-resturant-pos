@@ -67,4 +67,44 @@ export const apiHelpers = {
       return response.data;
     },
   },
+
+  // Menu
+  menu: {
+    getAll: async () => {
+      const response = await api.get('/menu');
+      return response.data;
+    },
+    getById: async (id: number) => {
+      const response = await api.get(`/menu/${id}`);
+      return response.data;
+    },
+    getByCategory: async (category: string) => {
+      const response = await api.get(`/menu/category/${category}`);
+      return response.data;
+    },
+  },
+
+  // Orders
+  orders: {
+    create: async (items: Array<{ menuItemId: number; quantity: number; notes?: string }>, tableNumber?: string) => {
+      const response = await api.post('/orders', { items, tableNumber });
+      return response.data;
+    },
+    getAll: async (filters?: { status?: string; serverId?: number }) => {
+      const response = await api.get('/orders', { params: filters });
+      return response.data;
+    },
+    getById: async (id: number) => {
+      const response = await api.get(`/orders/${id}`);
+      return response.data;
+    },
+    update: async (id: number, data: any) => {
+      const response = await api.patch(`/orders/${id}`, data);
+      return response.data;
+    },
+    cancelLast: async () => {
+      const response = await api.delete('/orders/last');
+      return response.data;
+    },
+  },
 };
