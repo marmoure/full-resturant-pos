@@ -197,9 +197,8 @@ const ServerView = () => {
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 text-sm">
                 <div
-                  className={`w-2 h-2 rounded-full ${
-                    isConnected ? 'bg-green-500' : 'bg-red-500'
-                  }`}
+                  className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'
+                    }`}
                 />
                 <span className="text-slate-600">
                   {isConnected ? 'Live' : 'Offline'}
@@ -238,11 +237,10 @@ const ServerView = () => {
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition ${
-                  selectedCategory === category
+                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition ${selectedCategory === category
                     ? 'bg-blue-600 text-white'
                     : 'bg-white text-slate-700 hover:bg-slate-100'
-                }`}
+                  }`}
               >
                 {category.charAt(0).toUpperCase() + category.slice(1)}
               </button>
@@ -271,7 +269,7 @@ const ServerView = () => {
                     </span>
                   </div>
                   <p className="text-lg font-bold text-blue-600 mb-3">
-                    ${item.price.toFixed(2)}
+                    ${item.price}
                   </p>
                   {cartItem ? (
                     <div className="flex items-center justify-between">
@@ -311,8 +309,24 @@ const ServerView = () => {
         )}
       </main>
 
-      {/* Cart - Fixed Bottom */}
+      {/* Bottom Actions */}
+      {cart.length === 0 && (
+        // Show Cancel Last Order when the cart is empty
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow z-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-center">
+            <button
+              onClick={() => setShowCancelModal(true)}
+              disabled={submitting}
+              className="px-6 py-3 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition font-medium disabled:opacity-50"
+            >
+              Cancel Last Order
+            </button>
+          </div>
+        </div>
+      )}
+
       {cart.length > 0 && (
+        // Show full cart view when items are added
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between mb-4">
@@ -330,7 +344,7 @@ const ServerView = () => {
               </button>
             </div>
 
-            {/* Cart Items - Scrollable */}
+            {/* Cart Items */}
             <div className="max-h-32 overflow-y-auto mb-4 space-y-2">
               {cart.map((item) => (
                 <div
@@ -364,15 +378,8 @@ const ServerView = () => {
               className="w-full px-4 py-2 border border-slate-300 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
 
-            {/* Action Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowCancelModal(true)}
-                disabled={submitting}
-                className="flex-1 py-3 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition font-medium disabled:opacity-50"
-              >
-                Cancel Last Order
-              </button>
+            {/* Submit Button Only */}
+            <div className="flex justify-end">
               <button
                 onClick={submitOrder}
                 disabled={submitting}
@@ -384,15 +391,14 @@ const ServerView = () => {
                     Processing...
                   </>
                 ) : (
-                  <>
-                    Submit Order - ${calculateTotal()}
-                  </>
+                  <>Submit Order - ${calculateTotal().toFixed(2)}</>
                 )}
               </button>
             </div>
           </div>
         </div>
       )}
+
 
       {/* Cancel Confirmation Modal */}
       {showCancelModal && (
@@ -430,11 +436,10 @@ const ServerView = () => {
       {toast && (
         <div className="fixed bottom-24 right-4 z-50 animate-slide-up">
           <div
-            className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${
-              toast.type === 'success'
+            className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${toast.type === 'success'
                 ? 'bg-green-600 text-white'
                 : 'bg-red-600 text-white'
-            }`}
+              }`}
           >
             {toast.type === 'success' ? (
               <CheckCircle className="w-5 h-5" />
