@@ -49,7 +49,7 @@ model MenuItem {
 model Order {
   id          Int         @id @default(autoincrement())
   orderNumber Int         // Daily reset order number
-  status      String      @default("OPEN") // OPEN, PREPARING, READY, COMPLETED, CANCELLED
+  status      String      @default("OPEN") // OPEN, SERVED, COMPLETED, CANCELLED
   tableNumber String?     // Optional table number
   totalPrice  Float       @default(0)
   serverId    Int

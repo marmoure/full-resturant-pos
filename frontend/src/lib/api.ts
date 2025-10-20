@@ -110,5 +110,20 @@ export const apiHelpers = {
       const response = await api.get('/orders/grill');
       return response.data;
     },
+    // Get active orders for the logged-in server
+    getActiveOrders: async () => {
+      const response = await api.get('/orders/active');
+      return response.data;
+    },
+    // Mark an order as served
+    markAsServed: async (id: number) => {
+      const response = await api.patch(`/orders/${id}/served`);
+      return response.data;
+    },
+    // Delete an order
+    deleteOrder: async (id: number) => {
+      const response = await api.delete(`/orders/${id}`);
+      return response.data;
+    },
   },
 };
