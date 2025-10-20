@@ -190,15 +190,18 @@ const GrillView = () => {
   const clearAllOrders = async () => {
     setClearing(true);
     try {
-      const response = await apiHelpers.orders.clearGrillOrders();
-      if (response.status === 'success') {
-        setOrders([]);
-        showToast(`Cleared ${response.data.cleared} orders`, 'success');
-        setShowClearModal(false);
-      }
+      // Mark all orders as completed
+      setCompletedOrders((prev) => {
+        const updated = new Set(prev);
+        orders.forEach((order) => updated.add(order.id));
+        return updated;
+      });
+
+      showToast(`Marked all ${orders.length} orders as done`, 'success');
+      setShowClearModal(false);
     } catch (error: any) {
-      console.error('Error clearing orders:', error);
-      showToast(error.response?.data?.message || 'Failed to clear orders', 'error');
+      console.error('Error marking orders as done:', error);
+      showToast('Failed to mark all orders as done', 'error');
     } finally {
       setClearing(false);
     }
@@ -476,8 +479,8 @@ const GrillView = () => {
                 </>
               ) : (
                 <>
-                  <Trash2 className="w-6 h-6" />
-                  Remove All Orders ({orders.filter((o) => !completedOrders.has(o.id)).length})
+                  <CheckCircle className="w-6 h-6" />
+                  Mark All as Done ({orders.filter((o) => !completedOrders.has(o.id)).length})
                 </>
               )}
             </button>
