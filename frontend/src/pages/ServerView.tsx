@@ -327,10 +327,37 @@ const ServerView = () => {
   // Get unique categories
   const categories = ['all', ...Array.from(new Set(menuItems.map((item) => item.category)))];
 
+  // Header visibility logic
+  const [showHeader, setShowHeader] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+
+      // Only trigger if movement is noticeable
+      if (Math.abs(currentY - lastScrollY.current) < 10) return;
+
+      if (currentY > lastScrollY.current && currentY > 50) {
+        // Scrolling down → hide header
+        setShowHeader(false);
+      } else if (currentY < 10) {
+        // Only show header again when near top
+        setShowHeader(true);
+      }
+
+      lastScrollY.current = currentY;
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50 pb-[300px]">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
+      <header className={`bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10 transition-transform duration-300 ${showHeader ? 'translate-y-0' : '-translate-y-full'
+        }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
