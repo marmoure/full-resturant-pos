@@ -217,6 +217,51 @@ router.delete('/last', authenticateToken, requireRole(['SERVER']), async (req: A
   }
 });
 
+// GET /orders/active - Get all active orders for the logged-in server
+router.get('/active', authenticateToken, requireRole(['SERVER']), async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'User not authenticated',
+      });
+    }
+
+    // Fetch all OPEN orders for this server
+    const orders = await prisma.order.findMany({
+      where: {
+        status: 'OPEN',
+        serverId: req.user.id,
+      },
+      include: {
+        items: {
+          include: {
+            menuItem: true,
+          },
+        },
+        server: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({
+      status: 'success',
+      data: orders,
+    });
+  } catch (error) {
+    console.error('Error fetching active orders:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch active orders',
+    });
+  }
+});
+
 // GET /orders/grill - Get all active grill orders
 router.get('/grill', authenticateToken, requireRole(['GRILL_COOK', 'OWNER']), async (req: AuthRequest, res: Response) => {
   try {
@@ -304,6 +349,91 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
     res.status(500).json({
       status: 'error',
       message: 'Failed to fetch order',
+    });
+  }
+});
+
+// PATCH /orders/:id/done - Mark order as done
+router.patch('/:id/done', authenticateToken, requireRole(['SERVER']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.user) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'User not authenticated',
+      });
+    }
+
+    // Find the order and verify ownership
+    const existingOrder = await prisma.order.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        items: {
+          include: {
+            menuItem: true,
+          },
+        },
+      },
+    });
+
+    if (!existingOrder) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Order not found',
+      });
+    }
+
+    // Verify that the order belongs to this server
+    if (existingOrder.serverId !== req.user.id) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'You can only mark your own orders as done',
+      });
+    }
+
+    // Only allow marking OPEN orders as done
+    if (existingOrder.status !== 'OPEN') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Only OPEN orders can be marked as done',
+      });
+    }
+
+    // Update order status to DONE
+    const updatedOrder = await prisma.order.update({
+      where: { id: parseInt(id) },
+      data: { status: 'DONE' },
+      include: {
+        items: {
+          include: {
+            menuItem: true,
+          },
+        },
+        server: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    console.info(`✅ Order marked as done: #${updatedOrder.orderNumber} by ${req.user.username}`);
+
+    // Broadcast order done event
+    broadcast(WS_EVENTS.ORDER_DONE, updatedOrder);
+
+    res.json({
+      status: 'success',
+      message: 'Order marked as done',
+      data: updatedOrder,
+    });
+  } catch (error) {
+    console.error('Error marking order as done:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to mark order as done',
     });
   }
 });
@@ -410,6 +540,75 @@ router.patch('/:id', authenticateToken, requireRole(['SERVER']), async (req: Aut
     res.status(500).json({
       status: 'error',
       message: 'Failed to update order',
+    });
+  }
+});
+
+// DELETE /orders/:id - Delete an order
+router.delete('/:id', authenticateToken, requireRole(['SERVER']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.user) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'User not authenticated',
+      });
+    }
+
+    // Find the order and verify ownership
+    const existingOrder = await prisma.order.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        items: {
+          include: {
+            menuItem: true,
+          },
+        },
+        server: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    if (!existingOrder) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Order not found',
+      });
+    }
+
+    // Verify that the order belongs to this server
+    if (existingOrder.serverId !== req.user.id) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'You can only delete your own orders',
+      });
+    }
+
+    // Delete the order (cascade will delete order items)
+    await prisma.order.delete({
+      where: { id: parseInt(id) },
+    });
+
+    console.info(`✅ Order deleted: #${existingOrder.orderNumber} by ${req.user.username}`);
+
+    // Broadcast order delete event
+    broadcast(WS_EVENTS.ORDER_DELETE, existingOrder);
+
+    res.json({
+      status: 'success',
+      message: 'Order deleted successfully',
+      data: existingOrder,
+    });
+  } catch (error) {
+    console.error('Error deleting order:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to delete order',
     });
   }
 });
