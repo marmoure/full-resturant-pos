@@ -259,7 +259,7 @@ const GrillView = () => {
             return newFade;
           });
           updated.add(orderId);
-        }, 400); // match fade duration
+        }, 300); // match fade duration
         showToast(`Order #${orderId} marked as done`, 'success');
       }
 
