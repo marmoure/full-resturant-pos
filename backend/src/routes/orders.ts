@@ -266,63 +266,6 @@ router.get('/grill', authenticateToken, requireRole(['GRILL_COOK', 'OWNER']), as
   }
 });
 
-// DELETE /orders/grill - Clear all grill orders
-router.delete('/grill', authenticateToken, requireRole(['GRILL_COOK', 'OWNER']), async (req: AuthRequest, res: Response) => {
-  try {
-    // Find all OPEN orders with grill items
-    const grillOrders = await prisma.order.findMany({
-      where: {
-        status: 'OPEN',
-        items: {
-          some: {
-            menuItem: {
-              station: 'grill',
-            },
-          },
-        },
-      },
-      select: { id: true },
-    });
-
-    if (grillOrders.length === 0) {
-      return res.json({
-        status: 'success',
-        message: 'No grill orders to clear',
-        data: { cleared: 0 },
-      });
-    }
-
-    const orderIds = grillOrders.map((order) => order.id);
-
-    // Update all grill orders to COMPLETED
-    const result = await prisma.order.updateMany({
-      where: {
-        id: { in: orderIds },
-      },
-      data: {
-        status: 'COMPLETED',
-      },
-    });
-
-    console.info(`✅ Cleared ${result.count} grill orders`);
-
-    // Broadcast clear event
-    broadcast('grill:clear', { cleared: result.count, orderIds });
-
-    res.json({
-      status: 'success',
-      message: `Cleared ${result.count} grill orders`,
-      data: { cleared: result.count },
-    });
-  } catch (error) {
-    console.error('Error clearing grill orders:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Failed to clear grill orders',
-    });
-  }
-});
-
 // GET /orders/:id - Get single order
 router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {

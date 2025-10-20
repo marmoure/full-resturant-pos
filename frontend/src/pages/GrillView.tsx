@@ -109,7 +109,14 @@ const GrillView = () => {
     try {
       const response = await apiHelpers.orders.getGrillOrders();
       if (response.status === 'success') {
-        setOrders(response.data);
+        const grillOrders = response.data
+          .map((order: Order) => ({
+            ...order,
+            items: order.items.filter((item) => item.menuItem.station === 'grill'),
+          }))
+          .filter((order: Order) => order.items.length > 0);
+
+        setOrders(grillOrders);
       }
     } catch (error) {
       console.error('Error fetching grill orders:', error);
@@ -121,10 +128,14 @@ const GrillView = () => {
 
   // WebSocket event handlers
   const handleNewOrder = (newOrder: Order) => {
-    // Check if order has grill items
-    const hasGrillItems = newOrder.items?.some((item: OrderItem) => item.menuItem.station === 'grill');
-    if (hasGrillItems && newOrder.id) {
-      setOrders((prev) => [...prev, newOrder]);
+    // Keep only grill items
+    const grillItems = newOrder.items?.filter(
+      (item: OrderItem) => item.menuItem.station === 'grill'
+    );
+
+    if (grillItems.length > 0 && newOrder.id) {
+      const grillOrder = { ...newOrder, items: grillItems };
+      setOrders((prev) => [...prev, grillOrder]);
       highlightOrder(newOrder.id);
       showToast(`New order #${newOrder.orderNumber} received!`, 'info');
       newOrderSound.play().catch((e) => console.error(e));
@@ -132,25 +143,25 @@ const GrillView = () => {
   };
 
   const handleOrderUpdate = (updatedOrder: Order) => {
-    const hasGrillItems = updatedOrder.items?.some((item: OrderItem) => item.menuItem.station === 'grill');
+    // Keep only grill items
+    const grillItems = updatedOrder.items?.filter(
+      (item: OrderItem) => item.menuItem.station === 'grill'
+    );
 
-    if (hasGrillItems) {
+    if (grillItems.length > 0) {
+      const grillOrder = { ...updatedOrder, items: grillItems };
       setOrders((prev) => {
-        const exists = prev.some((o) => o.id === updatedOrder.id);
+        const exists = prev.some((o) => o.id === grillOrder.id);
         if (exists) {
-          // Update existing order
-          return prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o));
+          return prev.map((o) => (o.id === grillOrder.id ? grillOrder : o));
         } else {
-          // Add new order
-          return [...prev, updatedOrder];
+          return [...prev, grillOrder];
         }
       });
-      if (updatedOrder.id) {
-        highlightOrder(updatedOrder.id);
-      }
-      showToast(`Order #${updatedOrder.orderNumber} updated`, 'info');
+      highlightOrder(grillOrder.id);
+      showToast(`Order #${grillOrder.orderNumber} updated`, 'info');
     } else {
-      // Remove order if it no longer has grill items
+      // Remove if no grill items left
       setOrders((prev) => prev.filter((o) => o.id !== updatedOrder.id));
     }
   };
@@ -187,7 +198,7 @@ const GrillView = () => {
     navigate('/login');
   };
 
-  const clearAllOrders = async () => {
+  const markAllAsDone = async () => {
     setClearing(true);
     try {
       // Mark all orders as completed
@@ -511,7 +522,7 @@ const GrillView = () => {
                 Cancel
               </button>
               <button
-                onClick={clearAllOrders}
+                onClick={markAllAsDone}
                 disabled={clearing}
                 className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium flex items-center justify-center gap-2"
               >

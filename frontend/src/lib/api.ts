@@ -110,9 +110,5 @@ export const apiHelpers = {
       const response = await api.get('/orders/grill');
       return response.data;
     },
-    clearGrillOrders: async () => {
-      const response = await api.delete('/orders/grill');
-      return response.data;
-    },
   },
 };
