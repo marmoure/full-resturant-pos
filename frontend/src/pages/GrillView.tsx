@@ -13,6 +13,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import newOrderSrc from '../sounds/new-order.mp3';
 
 interface MenuItem {
   id: number;
@@ -39,6 +40,8 @@ interface Order {
     username: string;
   };
 }
+
+const newOrderSound = new Audio(newOrderSrc);
 
 const GrillView = () => {
   const { user, logout } = useAuth();
@@ -70,6 +73,7 @@ const GrillView = () => {
   // Fetch grill orders on mount
   useEffect(() => {
     fetchGrillOrders();
+    newOrderSound.load()
   }, []);
 
 
@@ -123,6 +127,7 @@ const GrillView = () => {
       setOrders((prev) => [...prev, newOrder]);
       highlightOrder(newOrder.id);
       showToast(`New order #${newOrder.orderNumber} received!`, 'info');
+      newOrderSound.play().catch((e) => console.error(e));
     }
   };
 
