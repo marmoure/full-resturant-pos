@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Role model for user permissions
+model Role {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique // Owner, Server, Cashier, GrillCook, KitchenStaff
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+}
+
+// User model for authentication and role-based access
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String   // Hashed password
+  roleId    Int
+  role      Role     @relation(fields: [roleId], references: [id])
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]  // Orders created by this user
+}
+
+// MenuItem model for menu items
+model MenuItem {
+  id        Int         @id @default(autoincrement())
+  name      String      @unique
+  price     Float
+  category  String      // appetizer, main, dessert, beverage, etc.
+  station   String      // grill, kitchen, beverage
+  active    Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  orderItems OrderItem[]
+}
+
+// Order model for tracking restaurant orders
+model Order {
+  id          Int         @id @default(autoincrement())
+  orderNumber Int         // Daily reset order number
+  status      String      @default("OPEN") // OPEN, PREPARING, READY, COMPLETED, CANCELLED
+  tableNumber String?     // Optional table number
+  totalPrice  Float       @default(0)
+  serverId    Int
+  server      User        @relation(fields: [serverId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  items       OrderItem[]
+}
+
+// OrderItem model for individual items in an order
+model OrderItem {
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId Int
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  quantity   Int
+  price      Float    // Price at time of order
+  notes      String?  // Special instructions
+  status     String   @default("pending") // pending, preparing, ready
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
