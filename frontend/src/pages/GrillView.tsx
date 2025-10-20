@@ -49,6 +49,15 @@ const GrillView = () => {
   const [showClearModal, setShowClearModal] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [highlightedOrders, setHighlightedOrders] = useState<Set<number>>(new Set());
+  const [completedOrders, setCompletedOrders] = useState<Set<number>>(() => {
+    try {
+      const stored = localStorage.getItem('grillCompletedOrders');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
 
   // WebSocket connection
   const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -59,6 +68,12 @@ const GrillView = () => {
   useEffect(() => {
     fetchGrillOrders();
   }, []);
+
+
+  // Save completed orders to localStorage
+  useEffect(() => {
+    localStorage.setItem('grillCompletedOrders', JSON.stringify([...completedOrders]));
+  }, [completedOrders]);
 
   // Handle WebSocket messages for real-time updates
   useEffect(() => {
@@ -181,6 +196,25 @@ const GrillView = () => {
     }
   };
 
+  // Mark order as done (grill)
+  const markOrderAsDone = async (orderId: number) => {
+    try {
+      // Optionally, tell backend this order was completed at grill
+      // await apiHelpers.orders.markGrillOrderDone(orderId);
+
+      // Remove from UI instantly
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+
+      showToast(`Order #${orderId} marked as done`, 'success');
+    } catch (error: any) {
+      console.error('Error marking order as done:', error);
+      showToast(
+        error.response?.data?.message || 'Failed to mark order as done',
+        'error'
+      );
+    }
+  };
+
   // Calculate elapsed time since order creation
   const getElapsedTime = (createdAt: string): string => {
     const now = Date.now();
@@ -219,6 +253,22 @@ const GrillView = () => {
         {time}
       </div>
     );
+  };
+
+
+  // Toggle grill order completion
+  const toggleGrillCompletion = (orderId: number) => {
+    setCompletedOrders((prev) => {
+      const updated = new Set(prev);
+      if (updated.has(orderId)) {
+        updated.delete(orderId);
+        showToast(`Order #${orderId} marked as active`, 'info');
+      } else {
+        updated.add(orderId);
+        showToast(`Order #${orderId} marked as done (grill only)`, 'success');
+      }
+      return updated;
+    });
   };
 
   return (
@@ -286,62 +336,91 @@ const GrillView = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {orders.map((order) => (
-              <div
-                key={order.id}
-                className={`bg-white rounded-xl shadow-md border-2 p-6 transition-all duration-500 ${highlightedOrders.has(order.id)
-                  ? 'border-orange-500 bg-orange-50 scale-[1.02]'
-                  : 'border-slate-200 hover:shadow-lg'
-                  }`}
-              >
-                {/* Order Header */}
-                <div className="flex items-start justify-between mb-4 pb-4 border-b border-slate-200">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-3xl font-black text-orange-600">
-                        #{order.orderNumber}
-                      </span>
-                      {order.tableNumber && (
-                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg font-semibold text-sm">
-                          Table {order.tableNumber}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-slate-600">
-                      Server: <span className="font-medium">{order.server.username}</span>
-                    </p>
-                  </div>
-                  <LiveTimer createdAt={order.createdAt} />
-                </div>
+            {orders.map((order) => {
+              const isCompleted = completedOrders.has(order.id);
 
-                {/* Order Items */}
-                <div className="space-y-3">
-                  {order.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-start justify-between p-3 bg-slate-50 rounded-lg"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-2xl font-bold text-orange-600">
-                            {item.quantity}x
+              return (
+                <div
+                  key={order.id}
+                  className={`relative bg-white rounded-xl shadow-md border-2 p-6 transition-all duration-500 ${highlightedOrders.has(order.id)
+                    ? 'border-orange-500 bg-orange-50 scale-[1.02]'
+                    : isCompleted
+                      ? 'border-green-300 bg-green-50 opacity-70'
+                      : 'border-slate-200 hover:shadow-lg'
+                    }`}
+                >
+                  {/* Order Header */}
+                  <div className="flex items-start justify-between mb-4 pb-4 border-b border-slate-200">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-3xl font-black text-orange-600">
+                          #{order.orderNumber}
+                        </span>
+                        {order.tableNumber && (
+                          <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg font-semibold text-sm">
+                            Table {order.tableNumber}
                           </span>
-                          <span className="text-lg font-semibold text-slate-900">
-                            {item.menuItem.name}
-                          </span>
-                        </div>
-                        {item.notes && (
-                          <div className="flex items-start gap-2 mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                            <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-                            <p className="text-sm text-yellow-800 font-medium">{item.notes}</p>
-                          </div>
                         )}
                       </div>
+                      <p className="text-sm text-slate-600">
+                        Server: <span className="font-medium">{order.server.username}</span>
+                      </p>
                     </div>
-                  ))}
+
+                    {/* Timer + Done button */}
+                    <div className="flex flex-col items-end gap-2">
+                      <LiveTimer createdAt={order.createdAt} />
+                      <button
+                        onClick={() => toggleGrillCompletion(order.id)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold shadow transition ${isCompleted
+                          ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                          : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
+                          }`}
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        {isCompleted ? 'Undo' : 'Done'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Order Items */}
+                  <div className="space-y-3">
+                    {order.items.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`flex items-start justify-between p-3 rounded-lg ${isCompleted ? 'bg-slate-100' : 'bg-slate-50'
+                          }`}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span
+                              className={`text-2xl font-bold ${isCompleted ? 'text-slate-400' : 'text-orange-600'
+                                }`}
+                            >
+                              {item.quantity}x
+                            </span>
+                            <span
+                              className={`text-lg font-semibold ${isCompleted ? 'text-slate-500 line-through' : 'text-slate-900'
+                                }`}
+                            >
+                              {item.menuItem.name}
+                            </span>
+                          </div>
+                          {item.notes && (
+                            <div className="flex items-start gap-2 mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                              <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                              <p className="text-sm text-yellow-800 font-medium">{item.notes}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+
+
           </div>
         )}
       </main>
