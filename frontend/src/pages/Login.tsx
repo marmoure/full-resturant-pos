@@ -1,7 +1,7 @@
 import { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../lib/AuthContext';
 import { LogIn, Loader2, AlertCircle } from 'lucide-react';
+import { useWebSocket } from '../lib/useWebSocket';
+import { useAuth } from '../lib/AuthContext';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -9,7 +9,11 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
-  const navigate = useNavigate();
+
+  // WebSocket connection
+  const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const wsUrl = backendUrl.replace('http', 'ws');
+  const { isConnected } = useWebSocket(wsUrl);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -37,6 +41,18 @@ const Login = () => {
             </div>
             <h1 className="text-3xl font-bold text-slate-900">RestaurantPOS</h1>
             <p className="text-slate-600">Sign in to your account</p>
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+                  }`}
+              />
+              <span
+                className={`text-sm font-medium ${isConnected ? 'text-green-700' : 'text-red-600'
+                  }`}
+              >
+                {isConnected ? 'Connected' : 'Offline - retrying...'}
+              </span>
+            </div>
           </div>
 
           {/* Error Message */}
@@ -99,33 +115,6 @@ const Login = () => {
               )}
             </button>
           </form>
-
-          {/* Demo Credentials */}
-          <div className="border-t border-slate-200 pt-6">
-            <p className="text-sm font-medium text-slate-700 mb-3">Demo Accounts:</p>
-            <div className="space-y-2 text-xs text-slate-600">
-              <div className="flex justify-between bg-slate-50 p-2 rounded">
-                <span className="font-medium">Owner:</span>
-                <span>admin / admin123</span>
-              </div>
-              <div className="flex justify-between bg-slate-50 p-2 rounded">
-                <span className="font-medium">Server:</span>
-                <span>server1 / server123</span>
-              </div>
-              <div className="flex justify-between bg-slate-50 p-2 rounded">
-                <span className="font-medium">Cashier:</span>
-                <span>cashier1 / cashier123</span>
-              </div>
-              <div className="flex justify-between bg-slate-50 p-2 rounded">
-                <span className="font-medium">Grill Cook:</span>
-                <span>grill1 / grill123</span>
-              </div>
-              <div className="flex justify-between bg-slate-50 p-2 rounded">
-                <span className="font-medium">Kitchen:</span>
-                <span>kitchen1 / kitchen123</span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
