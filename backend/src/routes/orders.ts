@@ -146,6 +146,183 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// DELETE /orders/last - Cancel the most recent order
+router.delete('/last', authenticateToken, requireRole(['SERVER']), async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'User not authenticated',
+      });
+    }
+
+    // Find the most recent order by this server
+    const lastOrder = await prisma.order.findFirst({
+      where: {
+        serverId: req.user.id,
+        status: 'OPEN',
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        items: {
+          include: {
+            menuItem: true,
+          },
+        },
+      },
+    });
+
+    if (!lastOrder) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'No recent order found to cancel',
+      });
+    }
+
+    // Update status to CANCELLED instead of deleting
+    const cancelledOrder = await prisma.order.update({
+      where: { id: lastOrder.id },
+      data: { status: 'CANCELLED' },
+      include: {
+        items: {
+          include: {
+            menuItem: true,
+          },
+        },
+        server: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    console.info(`✅ Order cancelled: #${cancelledOrder.orderNumber}`);
+
+    // Broadcast cancellation
+    broadcast(WS_EVENTS.ORDER_CANCEL, cancelledOrder);
+
+    res.json({
+      status: 'success',
+      message: 'Order cancelled successfully',
+      data: cancelledOrder,
+    });
+  } catch (error) {
+    console.error('Error cancelling order:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to cancel order',
+    });
+  }
+});
+
+// GET /orders/grill - Get all active grill orders
+router.get('/grill', authenticateToken, requireRole(['GRILL_COOK', 'OWNER']), async (req: AuthRequest, res: Response) => {
+  try {
+    // Fetch all OPEN orders that have grill items
+    const orders = await prisma.order.findMany({
+      where: {
+        status: 'OPEN',
+        items: {
+          some: {
+            menuItem: {
+              station: 'grill',
+            },
+          },
+        },
+      },
+      include: {
+        items: {
+          where: {
+            menuItem: {
+              station: 'grill',
+            },
+          },
+          include: {
+            menuItem: true,
+          },
+        },
+        server: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    res.json({
+      status: 'success',
+      data: orders,
+    });
+  } catch (error) {
+    console.error('Error fetching grill orders:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch grill orders',
+    });
+  }
+});
+
+// DELETE /orders/grill - Clear all grill orders
+router.delete('/grill', authenticateToken, requireRole(['GRILL_COOK', 'OWNER']), async (req: AuthRequest, res: Response) => {
+  try {
+    // Find all OPEN orders with grill items
+    const grillOrders = await prisma.order.findMany({
+      where: {
+        status: 'OPEN',
+        items: {
+          some: {
+            menuItem: {
+              station: 'grill',
+            },
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    if (grillOrders.length === 0) {
+      return res.json({
+        status: 'success',
+        message: 'No grill orders to clear',
+        data: { cleared: 0 },
+      });
+    }
+
+    const orderIds = grillOrders.map((order) => order.id);
+
+    // Update all grill orders to COMPLETED
+    const result = await prisma.order.updateMany({
+      where: {
+        id: { in: orderIds },
+      },
+      data: {
+        status: 'COMPLETED',
+      },
+    });
+
+    console.info(`✅ Cleared ${result.count} grill orders`);
+
+    // Broadcast clear event
+    broadcast('grill:clear', { cleared: result.count, orderIds });
+
+    res.json({
+      status: 'success',
+      message: `Cleared ${result.count} grill orders`,
+      data: { cleared: result.count },
+    });
+  } catch (error) {
+    console.error('Error clearing grill orders:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to clear grill orders',
+    });
+  }
+});
+
 // GET /orders/:id - Get single order
 router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
@@ -290,77 +467,6 @@ router.patch('/:id', authenticateToken, requireRole(['SERVER']), async (req: Aut
     res.status(500).json({
       status: 'error',
       message: 'Failed to update order',
-    });
-  }
-});
-
-// DELETE /orders/last - Cancel the most recent order
-router.delete('/last', authenticateToken, requireRole(['SERVER']), async (req: AuthRequest, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'User not authenticated',
-      });
-    }
-
-    // Find the most recent order by this server
-    const lastOrder = await prisma.order.findFirst({
-      where: {
-        serverId: req.user.id,
-        status: 'OPEN',
-      },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        items: {
-          include: {
-            menuItem: true,
-          },
-        },
-      },
-    });
-
-    if (!lastOrder) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'No recent order found to cancel',
-      });
-    }
-
-    // Update status to CANCELLED instead of deleting
-    const cancelledOrder = await prisma.order.update({
-      where: { id: lastOrder.id },
-      data: { status: 'CANCELLED' },
-      include: {
-        items: {
-          include: {
-            menuItem: true,
-          },
-        },
-        server: {
-          select: {
-            id: true,
-            username: true,
-          },
-        },
-      },
-    });
-
-    console.info(`✅ Order cancelled: #${cancelledOrder.orderNumber}`);
-
-    // Broadcast cancellation
-    broadcast(WS_EVENTS.ORDER_CANCEL, cancelledOrder);
-
-    res.json({
-      status: 'success',
-      message: 'Order cancelled successfully',
-      data: cancelledOrder,
-    });
-  } catch (error) {
-    console.error('Error cancelling order:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Failed to cancel order',
     });
   }
 });
