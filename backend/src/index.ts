@@ -19,10 +19,7 @@ const PORT = process.env.PORT || 5000;
 export const prisma = new PrismaClient();
 
 // Middleware
-app.use(cors({
-  origin: '*', // Allow all for now (you can restrict later)
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-})); //TODO remove later 
+app.use(cors()); //TODO remove later 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
