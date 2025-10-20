@@ -93,11 +93,11 @@ const ServerView = () => {
         showToast('New order created!', 'success');
       }
 
-      // Handle order:done - remove from active orders
-      if (lastMessage.type === 'order:done') {
+      // Handle order:served - remove from active orders
+      if (lastMessage.type === 'order:served') {
         setActiveOrders(prev => prev.filter(order => order.id !== lastMessage.data?.id));
         if (lastMessage.data?.serverId === user?.id) {
-          showToast('Order marked as done!', 'success');
+          showToast('Order marked as served!', 'success');
         }
       }
 
@@ -261,15 +261,15 @@ const ServerView = () => {
     }
   };
 
-  const markOrderAsDone = async (orderId: number) => {
+  const markOrderAsServed = async (orderId: number) => {
     try {
-      const response = await apiHelpers.orders.markAsDone(orderId);
+      const response = await apiHelpers.orders.markAsServed(orderId);
       if (response.status === 'success') {
         // WebSocket will handle removing from activeOrders
       }
     } catch (error: any) {
-      console.error('Error marking order as done:', error);
-      showToast(error.response?.data?.message || 'Failed to mark order as done', 'error');
+      console.error('Error marking order as served:', error);
+      showToast(error.response?.data?.message || 'Failed to mark order as served', 'error');
     }
   };
 
@@ -443,11 +443,11 @@ const ServerView = () => {
                     {/* Action Buttons */}
                     <div className="flex gap-2">
                       <button
-                        onClick={() => markOrderAsDone(order.id)}
+                        onClick={() => markOrderAsServed(order.id)}
                         className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition flex items-center justify-center gap-2 font-medium"
                       >
                         <CheckCircle className="w-4 h-4" />
-                        Mark Done
+                        Mark Served
                       </button>
                       <button
                         onClick={() => setDeleteConfirmId(order.id)}

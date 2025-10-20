@@ -353,8 +353,8 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
   }
 });
 
-// PATCH /orders/:id/done - Mark order as done
-router.patch('/:id/done', authenticateToken, requireRole(['SERVER']), async (req: AuthRequest, res: Response) => {
+// PATCH /orders/:id/served - Mark order as served
+router.patch('/:id/served', authenticateToken, requireRole(['SERVER']), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -388,22 +388,22 @@ router.patch('/:id/done', authenticateToken, requireRole(['SERVER']), async (req
     if (existingOrder.serverId !== req.user.id) {
       return res.status(403).json({
         status: 'error',
-        message: 'You can only mark your own orders as done',
+        message: 'You can only mark your own orders as served',
       });
     }
 
-    // Only allow marking OPEN orders as done
+    // Only allow marking OPEN orders as served
     if (existingOrder.status !== 'OPEN') {
       return res.status(400).json({
         status: 'error',
-        message: 'Only OPEN orders can be marked as done',
+        message: 'Only OPEN orders can be marked as served',
       });
     }
 
-    // Update order status to DONE
+    // Update order status to served
     const updatedOrder = await prisma.order.update({
       where: { id: parseInt(id) },
-      data: { status: 'DONE' },
+      data: { status: 'SERVED' },
       include: {
         items: {
           include: {
@@ -419,21 +419,21 @@ router.patch('/:id/done', authenticateToken, requireRole(['SERVER']), async (req
       },
     });
 
-    console.info(`✅ Order marked as done: #${updatedOrder.orderNumber} by ${req.user.username}`);
+    console.info(`✅ Order marked as served: #${updatedOrder.orderNumber} by ${req.user.username}`);
 
-    // Broadcast order done event
-    broadcast(WS_EVENTS.ORDER_DONE, updatedOrder);
+    // Broadcast order served event
+    broadcast(WS_EVENTS.ORDER_SERVED, updatedOrder);
 
     res.json({
       status: 'success',
-      message: 'Order marked as done',
+      message: 'Order marked as served',
       data: updatedOrder,
     });
   } catch (error) {
-    console.error('Error marking order as done:', error);
+    console.error('Error marking order as served:', error);
     res.status(500).json({
       status: 'error',
-      message: 'Failed to mark order as done',
+      message: 'Failed to mark order as served',
     });
   }
 });

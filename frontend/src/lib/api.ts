@@ -115,9 +115,9 @@ export const apiHelpers = {
       const response = await api.get('/orders/active');
       return response.data;
     },
-    // Mark an order as done
-    markAsDone: async (id: number) => {
-      const response = await api.patch(`/orders/${id}/done`);
+    // Mark an order as served
+    markAsServed: async (id: number) => {
+      const response = await api.patch(`/orders/${id}/served`);
       return response.data;
     },
     // Delete an order

@@ -53,6 +53,6 @@ export const WS_EVENTS = {
   ORDER_UPDATE: 'order:update',
   ORDER_CANCEL: 'order:cancel',
   ORDER_STATUS_CHANGE: 'order:status',
-  ORDER_DONE: 'order:done',
+  ORDER_SERVED: 'order:served',
   ORDER_DELETE: 'order:delete',
 };
