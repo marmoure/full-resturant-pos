@@ -64,7 +64,7 @@ const GrillView = () => {
   useEffect(() => {
     if (lastMessage) {
       console.log('WebSocket message received:', lastMessage);
-      
+
       switch (lastMessage.type) {
         case 'order:new':
           handleNewOrder(lastMessage.data);
@@ -110,7 +110,7 @@ const GrillView = () => {
 
   const handleOrderUpdate = (updatedOrder: Order) => {
     const hasGrillItems = updatedOrder.items?.some((item: OrderItem) => item.menuItem.station === 'grill');
-    
+
     if (hasGrillItems) {
       setOrders((prev) => {
         const exists = prev.some((o) => o.id === updatedOrder.id);
@@ -226,30 +226,20 @@ const GrillView = () => {
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center shadow-lg">
-                <Flame className="w-7 h-7 text-white" />
+          <div className="flex flex-col gap-3">
+            {/* Top row: Title + Logout */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center shadow-lg">
+                  <Flame className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900">🔥 Grill Orders</h1>
+                  <p className="text-sm text-slate-600">Welcome, {user?.username}</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">🔥 Grill Orders</h1>
-                <p className="text-sm text-slate-600">Welcome, {user?.username}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-sm">
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
-                  }`}
-                />
-                <span className="text-slate-600">
-                  {isConnected ? 'Live' : 'Offline'}
-                </span>
-              </div>
-              <div className="px-3 py-1 bg-orange-100 text-orange-700 rounded-lg font-semibold text-sm">
-                {orders.length} {orders.length === 1 ? 'Order' : 'Orders'}
-              </div>
+
+              {/* Logout stays on same row */}
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
@@ -258,9 +248,27 @@ const GrillView = () => {
                 Logout
               </button>
             </div>
+
+            {/* Second row: full-width order status bar */}
+            <div className="w-full">
+              <div className="relative w-full flex items-center justify-center py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg shadow-md">
+                {/* Status dot */}
+                <span
+                  className={`absolute right-5 w-3.5 h-3.5 rounded-full border-2 border-white ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'
+                    }`}
+                />
+                {/* Order count */}
+                <span className="text-xl font-bold tracking-wide">
+                  {orders.length} {orders.length === 1 ? 'Order' : 'Orders'}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </header>
+
+
+
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -281,11 +289,10 @@ const GrillView = () => {
             {orders.map((order) => (
               <div
                 key={order.id}
-                className={`bg-white rounded-xl shadow-md border-2 p-6 transition-all duration-500 ${
-                  highlightedOrders.has(order.id)
-                    ? 'border-orange-500 bg-orange-50 scale-[1.02]'
-                    : 'border-slate-200 hover:shadow-lg'
-                }`}
+                className={`bg-white rounded-xl shadow-md border-2 p-6 transition-all duration-500 ${highlightedOrders.has(order.id)
+                  ? 'border-orange-500 bg-orange-50 scale-[1.02]'
+                  : 'border-slate-200 hover:shadow-lg'
+                  }`}
               >
                 {/* Order Header */}
                 <div className="flex items-start justify-between mb-4 pb-4 border-b border-slate-200">
@@ -406,13 +413,12 @@ const GrillView = () => {
       {toast && (
         <div className="fixed bottom-24 right-4 z-50 animate-slide-up">
           <div
-            className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${
-              toast.type === 'success'
-                ? 'bg-green-600 text-white'
-                : toast.type === 'error'
+            className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${toast.type === 'success'
+              ? 'bg-green-600 text-white'
+              : toast.type === 'error'
                 ? 'bg-red-600 text-white'
                 : 'bg-blue-600 text-white'
-            }`}
+              }`}
           >
             {toast.type === 'success' ? (
               <CheckCircle className="w-5 h-5" />
