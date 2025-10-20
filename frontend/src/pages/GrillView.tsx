@@ -472,7 +472,7 @@ const GrillView = () => {
               ) : (
                 <>
                   <Trash2 className="w-6 h-6" />
-                  Remove All Orders ({orders.length})
+                  Remove All Orders ({orders.filter((o) => !completedOrders.has(o.id)).length})
                 </>
               )}
             </button>
