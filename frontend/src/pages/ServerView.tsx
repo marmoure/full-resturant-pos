@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { apiHelpers } from '../lib/api';
 import { useWebSocket } from '../lib/useWebSocket';
@@ -64,6 +64,46 @@ const ServerView = () => {
     }
   }, [lastMessage]);
 
+  // --- Long Press Setup ---
+  const longPressTimeoutRef = useRef<number | null>(null);
+  const longPressIntervalRef = useRef<number | null>(null);
+
+  // cleanup timers when component unmounts
+  useEffect(() => {
+    return () => {
+      if (longPressTimeoutRef.current) clearTimeout(longPressTimeoutRef.current);
+      if (longPressIntervalRef.current) clearInterval(longPressIntervalRef.current);
+    };
+  }, []);
+
+  const startLongPress = (callback: () => void) => {
+    // Clear any previous timers
+    if (longPressTimeoutRef.current) clearTimeout(longPressTimeoutRef.current);
+    if (longPressIntervalRef.current) clearInterval(longPressIntervalRef.current);
+
+    // Wait 300 ms → then repeat every 100 ms
+    longPressTimeoutRef.current = window.setTimeout(() => {
+      callback(); // initial call after delay
+      longPressIntervalRef.current = window.setInterval(() => {
+        callback();
+      }, 100);
+    }, 300);
+  };
+
+  const stopLongPress = () => {
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+    if (longPressIntervalRef.current) {
+      clearInterval(longPressIntervalRef.current);
+      longPressIntervalRef.current = null;
+    }
+  };
+
+  // --- Long Press Setup ---
+
+
   const fetchMenuItems = async () => {
     setLoading(true);
     try {
@@ -105,8 +145,8 @@ const ServerView = () => {
   };
 
   const updateQuantity = (menuItemId: number, delta: number) => {
-    setCart(
-      cart
+    setCart((prevCart) =>
+      prevCart
         .map((item) =>
           item.menuItem.id === menuItemId
             ? { ...item, quantity: Math.max(0, item.quantity + delta) }
@@ -238,8 +278,8 @@ const ServerView = () => {
                 key={category}
                 onClick={() => setSelectedCategory(category)}
                 className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition ${selectedCategory === category
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-slate-700 hover:bg-slate-100'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-slate-700 hover:bg-slate-100'
                   }`}
               >
                 {category.charAt(0).toUpperCase() + category.slice(1)}
@@ -274,6 +314,11 @@ const ServerView = () => {
                   {cartItem ? (
                     <div className="flex items-center justify-between">
                       <button
+                        onMouseDown={() => startLongPress(() => updateQuantity(item.id, -1))}
+                        onMouseUp={stopLongPress}
+                        onMouseLeave={stopLongPress}
+                        onTouchStart={() => startLongPress(() => updateQuantity(item.id, -1))}
+                        onTouchEnd={stopLongPress}
                         onClick={() => updateQuantity(item.id, -1)}
                         className="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
                       >
@@ -281,6 +326,11 @@ const ServerView = () => {
                       </button>
                       <span className="font-semibold text-lg">{cartItem.quantity}</span>
                       <button
+                        onMouseDown={() => startLongPress(() => updateQuantity(item.id, 1))}
+                        onMouseUp={stopLongPress}
+                        onMouseLeave={stopLongPress}
+                        onTouchStart={() => startLongPress(() => updateQuantity(item.id, 1))}
+                        onTouchEnd={stopLongPress}
                         onClick={() => updateQuantity(item.id, 1)}
                         className="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
                       >
@@ -437,8 +487,8 @@ const ServerView = () => {
         <div className="fixed bottom-24 right-4 z-50 animate-slide-up">
           <div
             className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${toast.type === 'success'
-                ? 'bg-green-600 text-white'
-                : 'bg-red-600 text-white'
+              ? 'bg-green-600 text-white'
+              : 'bg-red-600 text-white'
               }`}
           >
             {toast.type === 'success' ? (
