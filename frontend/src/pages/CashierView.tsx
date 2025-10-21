@@ -259,10 +259,6 @@ const CashierView = () => {
     return true;
   });
 
-  // Calculate totals
-  const totalOrders = filteredOrders.length;
-  const totalRevenue = filteredOrders.reduce((sum, order) => sum + order.totalPrice, 0);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-slate-50 pb-24">
       {/* Header */}
