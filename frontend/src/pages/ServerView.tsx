@@ -12,6 +12,7 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
+  ChevronDown
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -629,26 +630,38 @@ const ServerView = () => {
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col h-full">
             {/* Header */}
+            {/* Header */}
             <div
               className="flex items-center justify-between mb-4 cursor-pointer select-none"
               onClick={() => setCartExpanded((prev) => !prev)}
             >
+              {/* Left side — Cart label */}
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-blue-600" />
                 <span className="font-semibold text-slate-900">
                   Cart ({cart.reduce((sum, item) => sum + item.quantity, 0)} items)
                 </span>
               </div>
+
+              {/* Middle — Expand/Collapse Icon */}
+              <ChevronDown
+                className={`w-6 h-6 text-slate-600 transform transition-transform duration-300 mx-4 ${cartExpanded ? 'rotate-0 text-blue-600' : 'rotate-180 text-slate-500'
+                  }`}
+              />
+
+              {/* Right side — Clear button */}
               <button
                 onClick={(e) => {
                   e.stopPropagation(); // prevent toggle
                   setCart([]);
                 }}
-                className="text-red-600 hover:text-red-700 text-sm font-medium"
+                className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center gap-1"
               >
+                <Trash2 className="w-4 h-4" />
                 Clear
               </button>
             </div>
+
 
             {/* Cart Items */}
             <div
