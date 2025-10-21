@@ -260,15 +260,15 @@ const CashierView = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-slate-50 pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-[#F8FAFC] to-[#F1F5F9] pb-24">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
+      <header className="bg-white shadow-sm border-b border-[#E2E8F0] sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col gap-3">
             {/* Top row: Title + Logout */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-500 rounded-lg flex items-center justify-center shadow-lg">
                   <DollarSign className="w-7 h-7 text-white" />
                 </div>
                 <div>
@@ -292,7 +292,7 @@ const CashierView = () => {
                 onClick={() => setFilterType('all')}
                 className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
                   filterType === 'all'
-                    ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
@@ -302,7 +302,7 @@ const CashierView = () => {
                 onClick={() => setFilterType('tables')}
                 className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
                   filterType === 'tables'
-                    ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
@@ -312,7 +312,7 @@ const CashierView = () => {
                 onClick={() => setFilterType('takeaway')}
                 className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
                   filterType === 'takeaway'
-                    ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
@@ -327,10 +327,10 @@ const CashierView = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
           </div>
         ) : filteredOrders.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm p-12 border border-slate-200 text-center">
+          <div className="bg-white rounded-xl shadow-sm p-12 border border-[#E2E8F0] text-center">
             <DollarSign className="w-16 h-16 text-slate-300 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-slate-900 mb-2">No Active Orders</h2>
             <p className="text-slate-600">
@@ -347,15 +347,15 @@ const CashierView = () => {
                   key={order.id}
                   className={`bg-white rounded-xl shadow-md border-2 p-6 transition-all duration-300 ${
                     isHighlighted
-                      ? 'border-purple-500 bg-purple-50 scale-[1.01]'
-                      : 'border-slate-200 hover:shadow-lg'
+                      ? 'border-blue-500 bg-blue-50 scale-[1.01]'
+                      : 'border-[#E2E8F0] hover:shadow-lg'
                   }`}
                 >
                   {/* Order Header */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <span className="text-3xl font-black text-purple-600">
+                        <span className="text-3xl font-black text-blue-600">
                           #{order.orderNumber}
                         </span>
                         {order.tableNumber ? (
@@ -407,7 +407,7 @@ const CashierView = () => {
                   {/* View Details Toggle */}
                   <button
                     onClick={() => toggleOrderDetails(order.id)}
-                    className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-purple-600 hover:text-purple-700 transition"
+                    className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition"
                   >
                     {isExpanded ? (
                       <>
@@ -424,7 +424,7 @@ const CashierView = () => {
 
                   {/* Order Items (Expandable) */}
                   {isExpanded && (
-                    <div className="mt-4 pt-4 border-t border-slate-200 space-y-2">
+                    <div className="mt-4 pt-4 border-t border-[#E2E8F0] space-y-2">
                       {order.items.map((item) => (
                         <div
                           key={item.id}
@@ -432,7 +432,7 @@ const CashierView = () => {
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-lg font-bold text-purple-600">
+                              <span className="text-lg font-bold text-blue-600">
                                 {item.quantity}x
                               </span>
                               <span className="text-base font-semibold text-slate-900">
@@ -480,7 +480,7 @@ const CashierView = () => {
               </p>
               <p className="text-slate-700">
                 <span className="font-semibold">Total:</span>{' '}
-                <span className="text-2xl font-bold text-purple-600">
+                <span className="text-2xl font-bold text-blue-600">
                   {selectedOrder.totalPrice} DA
                 </span>
               </p>
@@ -524,7 +524,7 @@ const CashierView = () => {
                 ? 'bg-green-600 text-white'
                 : toast.type === 'error'
                 ? 'bg-red-600 text-white'
-                : 'bg-blue-600 text-white'
+                : 'bg-yellow-500 text-slate-900'
             }`}
           >
             {toast.type === 'success' ? (
