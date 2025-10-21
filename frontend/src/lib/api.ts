@@ -120,6 +120,16 @@ export const apiHelpers = {
       const response = await api.delete('/orders/kitchen');
       return response.data;
     },
+    // Get all active orders for cashier (OPEN and SERVED)
+    getCashierOrders: async () => {
+      const response = await api.get('/orders/cashier');
+      return response.data;
+    },
+    // Complete order checkout (cashier only)
+    checkoutOrder: async (id: number) => {
+      const response = await api.patch(`/orders/${id}/checkout`);
+      return response.data;
+    },
     // Get active orders for the logged-in server
     getActiveOrders: async () => {
       const response = await api.get('/orders/active');
