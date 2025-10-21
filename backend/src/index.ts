@@ -69,7 +69,7 @@ const server = http.createServer(app);
 initWebSocketServer(server);
 
 // Start server
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`🚀 RestaurantPOS Backend running on port ${PORT}`);
   console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔌 WebSocket server ready`);

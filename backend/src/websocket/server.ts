@@ -55,4 +55,6 @@ export const WS_EVENTS = {
   ORDER_STATUS_CHANGE: 'order:status',
   ORDER_SERVED: 'order:served',
   ORDER_DELETE: 'order:delete',
+  GRILL_CLEAR: 'grill:clear',
+  KITCHEN_CLEAR: 'kitchen:clear',
 };

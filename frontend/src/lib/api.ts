@@ -110,6 +110,16 @@ export const apiHelpers = {
       const response = await api.get('/orders/grill');
       return response.data;
     },
+    // Get active kitchen orders (non-grill items)
+    getKitchenOrders: async () => {
+      const response = await api.get('/orders/kitchen');
+      return response.data;
+    },
+    // Clear all kitchen orders
+    clearKitchenOrders: async () => {
+      const response = await api.delete('/orders/kitchen');
+      return response.data;
+    },
     // Get active orders for the logged-in server
     getActiveOrders: async () => {
       const response = await api.get('/orders/active');

@@ -1,53 +1,587 @@
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../lib/AuthContext';
-import { ChefHat, LogOut } from 'lucide-react';
+import { apiHelpers } from '../lib/api';
+import { useWebSocket } from '../lib/useWebSocket';
+import {
+  ChefHat,
+  LogOut,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  AlertCircle,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import newOrderSrc from '../sounds/new-order.mp3';
+
+interface MenuItem {
+  id: number;
+  name: string;
+  price: number;
+  category: string;
+  station: string;
+}
+
+interface OrderItem {
+  id: number;
+  quantity: number;
+  menuItem: MenuItem;
+  notes?: string;
+}
+
+interface Order {
+  id: number;
+  orderNumber: number;
+  tableNumber?: string;
+  createdAt: string;
+  items: OrderItem[];
+  server: {
+    username: string;
+  };
+}
+
+const newOrderSound = new Audio(newOrderSrc);
 
 const KitchenView = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [highlightedOrders, setHighlightedOrders] = useState<Set<number>>(new Set());
+  const [completedOrders, setCompletedOrders] = useState<Set<number>>(() => {
+    try {
+      const stored = localStorage.getItem('kitchenCompletedOrders');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  const [showArchive, setShowArchive] = useState(false);
+  const [fadingOrders, setFadingOrders] = useState<Set<number>>(new Set());
+
+  // Header visibility
+  const [showHeader, setShowHeader] = useState(true);
+  const lastScrollY = useRef(0);
+
+  // WebSocket connection
+  const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const wsUrl = backendUrl.replace('http', 'ws');
+  const { isConnected, lastMessage } = useWebSocket(wsUrl);
+
+  // Fetch kitchen orders on mount
+  useEffect(() => {
+    fetchKitchenOrders();
+    newOrderSound.load();
+  }, []);
+
+  // Save completed orders to localStorage
+  useEffect(() => {
+    localStorage.setItem('kitchenCompletedOrders', JSON.stringify([...completedOrders]));
+  }, [completedOrders]);
+
+  // Handle WebSocket messages for real-time updates
+  useEffect(() => {
+    if (lastMessage) {
+      console.log('WebSocket message received:', lastMessage);
+
+      switch (lastMessage.type) {
+        case 'order:new':
+          handleNewOrder(lastMessage.data);
+          break;
+        case 'order:update':
+          handleOrderUpdate(lastMessage.data);
+          break;
+        case 'order:cancel':
+          handleOrderCancel(lastMessage.data);
+          break;
+        case 'kitchen:clear':
+          handleKitchenClear();
+          break;
+      }
+    }
+  }, [lastMessage]);
+
+  const fetchKitchenOrders = async () => {
+    setLoading(true);
+    try {
+      const response = await apiHelpers.orders.getKitchenOrders();
+      if (response.status === 'success') {
+        const kitchenOrders = response.data
+          .map((order: Order) => ({
+            ...order,
+            items: order.items.filter((item) => item.menuItem.station === 'kitchen'),
+          }))
+          .filter((order: Order) => order.items.length > 0);
+
+        setOrders(kitchenOrders);
+      }
+    } catch (error) {
+      console.error('Error fetching kitchen orders:', error);
+      showToast('Failed to load kitchen orders', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // WebSocket event handlers
+  const handleNewOrder = (newOrder: Order) => {
+    // Keep only kitchen items
+    const kitchenItems = newOrder.items?.filter(
+      (item: OrderItem) => item.menuItem.station === 'kitchen'
+    );
+
+    if (kitchenItems.length > 0 && newOrder.id) {
+      const kitchenOrder = { ...newOrder, items: kitchenItems };
+
+      setOrders((prev) => {
+        // ✅ Avoid duplicates
+        const exists = prev.some((o) => o.id === kitchenOrder.id);
+        if (exists) return prev;
+        return [...prev, kitchenOrder];
+      });
+
+      highlightOrder(newOrder.id);
+      showToast(`New kitchen order #${newOrder.orderNumber} received!`, 'info');
+      newOrderSound.play().catch((e) => console.error(e));
+    }
+  };
+
+  const handleOrderUpdate = (updatedOrder: Order) => {
+    // Keep only kitchen items
+    const kitchenItems = updatedOrder.items?.filter(
+      (item: OrderItem) => item.menuItem.station === 'kitchen'
+    );
+
+    if (kitchenItems.length > 0) {
+      const kitchenOrder = { ...updatedOrder, items: kitchenItems };
+      setOrders((prev) => {
+        const exists = prev.some((o) => o.id === kitchenOrder.id);
+        if (exists) {
+          return prev.map((o) => (o.id === kitchenOrder.id ? kitchenOrder : o));
+        } else {
+          return [...prev, kitchenOrder];
+        }
+      });
+      highlightOrder(kitchenOrder.id);
+      showToast(`Order #${kitchenOrder.orderNumber} updated`, 'info');
+    } else {
+      // Remove if no kitchen items left
+      setOrders((prev) => prev.filter((o) => o.id !== updatedOrder.id));
+    }
+  };
+
+  const handleOrderCancel = (cancelledOrder: Order) => {
+    setOrders((prev) => prev.filter((o) => o.id !== cancelledOrder.id));
+    showToast(`Order #${cancelledOrder.orderNumber} cancelled`, 'info');
+  };
+
+  const handleKitchenClear = () => {
+    setOrders([]);
+    showToast('All kitchen orders cleared', 'success');
+  };
+
+  // Highlight order with fade-in effect
+  const highlightOrder = (orderId: number) => {
+    setHighlightedOrders((prev) => new Set(prev).add(orderId));
+    setTimeout(() => {
+      setHighlightedOrders((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(orderId);
+        return newSet;
+      });
+    }, 2000);
+  };
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
+  const markAllAsDone = async () => {
+    setClearing(true);
+    try {
+      // Mark all orders as completed
+      setCompletedOrders((prev) => {
+        const updated = new Set(prev);
+        orders.forEach((order) => updated.add(order.id));
+        return updated;
+      });
+
+      showToast(`Marked all ${orders.length} orders as done`, 'success');
+      setShowClearModal(false);
+    } catch (error: any) {
+      console.error('Error marking orders as done:', error);
+      showToast('Failed to mark all orders as done', 'error');
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  // Calculate elapsed time since order creation
+  const getElapsedTime = (createdAt: string): string => {
+    const now = Date.now();
+    const created = new Date(createdAt).getTime();
+    const elapsed = Math.floor((now - created) / 1000); // seconds
+
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = elapsed % 60;
+
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // Live timer component with color coding
+  const LiveTimer = ({ createdAt }: { createdAt: string }) => {
+    const [time, setTime] = useState(getElapsedTime(createdAt));
+
+    useEffect(() => {
+      const interval = setInterval(() => {
+        setTime(getElapsedTime(createdAt));
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }, [createdAt]);
+
+    // Get color based on elapsed time (green <2min, orange <5min, red >5min)
+    const getTimeColor = () => {
+      const elapsed = Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
+      if (elapsed < 120) return 'text-green-600'; // < 2 min
+      if (elapsed < 300) return 'text-orange-600'; // < 5 min
+      return 'text-red-600'; // > 5 min
+    };
+
+    return (
+      <div className={`flex items-center gap-1 font-mono text-lg font-bold ${getTimeColor()}`}>
+        <Clock className="w-5 h-5" />
+        {time}
+      </div>
+    );
+  };
+
+  // Toggle kitchen order completion
+  const toggleKitchenCompletion = (orderId: number) => {
+    setCompletedOrders((prev) => {
+      const updated = new Set(prev);
+
+      if (updated.has(orderId)) {
+        // Undo
+        updated.delete(orderId);
+        showToast(`Order #${orderId} restored`, 'info');
+      } else {
+        // Mark complete
+        setFadingOrders((fadePrev) => new Set(fadePrev).add(orderId));
+        setTimeout(() => {
+          setFadingOrders((fadePrev) => {
+            const newFade = new Set(fadePrev);
+            newFade.delete(orderId);
+            return newFade;
+          });
+          updated.add(orderId);
+        }, 300); // match fade duration
+        showToast(`Order #${orderId} marked as done`, 'success');
+      }
+
+      return updated;
+    });
+  };
+
+  // Header visibility on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+
+      // Ignore tiny scroll movements
+      if (Math.abs(currentY - lastScrollY.current) < 10) return;
+
+      if (currentY > lastScrollY.current && currentY > 50) {
+        // Scrolling down past 50px → hide header
+        setShowHeader(false);
+      } else if (currentY < 10) {
+        // Only show again when near the top
+        setShowHeader(true);
+      }
+
+      lastScrollY.current = currentY;
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white shadow-sm border-b border-slate-200">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-slate-50 pb-24">
+      {/* Header */}
+      <header
+        className={`bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10 transition-transform duration-300 ${showHeader ? 'translate-y-0' : '-translate-y-full'
+          }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <ChefHat className="w-6 h-6 text-green-600" />
+          <div className="flex flex-col gap-3">
+            {/* Top row: Title + Logout */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center shadow-lg">
+                  <ChefHat className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900">🍳 Kitchen Orders</h1>
+                  <p className="text-sm text-slate-600">Welcome, {user?.username}</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">Kitchen View</h1>
-                <p className="text-sm text-slate-600">Welcome, {user?.username}</p>
+
+              {/* Logout button */}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Second row: Live Orders / Archive Toggle Buttons */}
+            <div className="w-full">
+              <div className="flex items-center justify-center gap-3">
+                {/* Live Orders Button */}
+                <button
+                  onClick={() => setShowArchive(false)}
+                  className={`flex items-center gap-2 px-5 py-3 rounded-lg text-lg font-semibold shadow-md transition-all ${!showArchive
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg scale-[1.02]'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                >
+                  <span
+                    className={`w-3.5 h-3.5 rounded-full border-2 border-white ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'
+                      }`}
+                  />
+                  Live Orders ({orders.filter((o) => !completedOrders.has(o.id)).length})
+                </button>
+
+                {/* Archive Button */}
+                <button
+                  onClick={() => setShowArchive(true)}
+                  className={`px-5 py-3 rounded-lg text-lg font-semibold shadow-md transition-all ${showArchive
+                    ? 'bg-gradient-to-r from-slate-600 to-slate-700 text-white shadow-lg scale-[1.02]'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                >
+                  Archive ({orders.filter((o) => completedOrders.has(o.id)).length})
+                </button>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-xl shadow-sm p-8 border border-slate-200 text-center">
-          <ChefHat className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Kitchen Station</h2>
-          <p className="text-slate-600 mb-6">
-            View and manage kitchen orders in real-time. Coming soon!
-          </p>
-          <div className="inline-block px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
-            Phase 3: Kitchen Display System
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-green-500" />
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-sm p-12 border border-slate-200 text-center">
+            <ChefHat className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">No Active Orders</h2>
+            <p className="text-slate-600">
+              Kitchen orders will appear here in real-time when servers submit them.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {orders
+              .filter((order) =>
+                showArchive
+                  ? completedOrders.has(order.id) // show archived
+                  : !completedOrders.has(order.id) // show live
+              )
+              .map((order) => {
+                const isCompleted = completedOrders.has(order.id);
+                const isFading = fadingOrders.has(order.id);
+                return (
+                  <div
+                    key={order.id}
+                    className={`relative bg-white rounded-xl shadow-md border-2 p-6 transition-all duration-500 transform ${highlightedOrders.has(order.id)
+                      ? 'border-green-500 bg-green-50 scale-[1.02]'
+                      : isCompleted
+                        ? 'border-green-300 bg-green-50 opacity-70'
+                        : 'border-slate-200 hover:shadow-lg'
+                      } ${isFading ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}
+                  >
+                    {/* Order Header */}
+                    <div className="flex items-start justify-between mb-4 pb-4 border-b border-slate-200">
+                      <div>
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="text-3xl font-black text-green-600">
+                            #{order.orderNumber}
+                          </span>
+                          {order.tableNumber && (
+                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg font-semibold text-sm">
+                              Table {order.tableNumber}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-600">
+                          Server: <span className="font-medium">{order.server.username}</span>
+                        </p>
+                      </div>
+
+                      {/* Timer + Done button */}
+                      <div className="flex flex-col items-end gap-2">
+                        <LiveTimer createdAt={order.createdAt} />
+                        <button
+                          onClick={() => toggleKitchenCompletion(order.id)}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold shadow transition ${isCompleted
+                            ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                            : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
+                            }`}
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          {isCompleted ? 'Undo' : 'Done'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Order Items */}
+                    <div className="space-y-3">
+                      {order.items.map((item) => (
+                        <div
+                          key={`${order.id}-${item.id}`}
+                          className={`flex items-start justify-between p-3 rounded-lg ${isCompleted ? 'bg-slate-100' : 'bg-slate-50'
+                            }`}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span
+                                className={`text-2xl font-bold ${isCompleted ? 'text-slate-400' : 'text-green-600'
+                                  }`}
+                              >
+                                {item.quantity}x
+                              </span>
+                              <span
+                                className={`text-lg font-semibold ${isCompleted
+                                  ? 'text-slate-500 line-through'
+                                  : 'text-slate-900'
+                                  }`}
+                              >
+                                {item.menuItem.name}
+                              </span>
+                            </div>
+                            {item.notes && (
+                              <div className="flex items-start gap-2 mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                                <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                                <p className="text-sm text-yellow-800 font-medium">{item.notes}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+            {/* Show No Orders Found */}
+            {showArchive && orders.every((o) => !completedOrders.has(o.id)) && (
+              <div className="bg-white rounded-xl shadow-sm p-8 border border-slate-200 text-center text-slate-600">
+                No archived kitchen orders yet.
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* Clear All Button - Fixed Bottom */}
+      {orders.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <button
+              onClick={() => setShowClearModal(true)}
+              disabled={clearing}
+              className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white rounded-lg transition font-bold text-lg flex items-center justify-center gap-3 disabled:opacity-50 shadow-lg"
+            >
+              {clearing ? (
+                <>
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  Clearing...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-6 h-6" />
+                  Mark All as Done ({orders.filter((o) => !completedOrders.has(o.id)).length})
+                </>
+              )}
+            </button>
           </div>
         </div>
-      </main>
+      )}
+
+      {/* Clear Confirmation Modal */}
+      {showClearModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-green-600" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Clear All Orders?</h3>
+            </div>
+            <p className="text-slate-600 mb-6">
+              This will mark all {orders.length} kitchen {orders.length === 1 ? 'order' : 'orders'} as completed.
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowClearModal(false)}
+                disabled={clearing}
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={markAllAsDone}
+                disabled={clearing}
+                className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium flex items-center justify-center gap-2"
+              >
+                {clearing ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  'Yes, Clear All'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notifications */}
+      {toast && (
+        <div className="fixed bottom-24 right-4 z-50 animate-slide-up">
+          <div
+            className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${toast.type === 'success'
+              ? 'bg-green-600 text-white'
+              : toast.type === 'error'
+                ? 'bg-red-600 text-white'
+                : 'bg-blue-600 text-white'
+              }`}
+          >
+            {toast.type === 'success' ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : toast.type === 'error' ? (
+              <XCircle className="w-5 h-5" />
+            ) : (
+              <AlertCircle className="w-5 h-5" />
+            )}
+            <span className="font-medium">{toast.message}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
