@@ -12,6 +12,7 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
+  ChevronDown
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -68,6 +69,7 @@ const ServerView = () => {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'create' | 'orders'>('create');
   const [cartExpanded, setCartExpanded] = useState(false);
+  useEffect(() => setCartExpanded(false), []); // always start with collapsed cart
 
 
 
@@ -251,6 +253,7 @@ const ServerView = () => {
         showToast(`Order #${response.data.orderNumber} created successfully!`, 'success');
         setCart([]);
         setTableNumber('');
+        setCartExpanded(false); // 👈 collapse cart after submit
         // Note: WebSocket will add the order to activeOrders automatically
       }
     } catch (error: any) {
@@ -620,31 +623,44 @@ const ServerView = () => {
       {/* Cart View */}
       {cart.length > 0 && (
         <div
-          className={`fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-20 transition-all duration-300 ${cartExpanded ? 'h-[90vh] pb-4' : 'max-h-[180px]'
-            } overflow-hidden`}
+          className={`fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-20 
+    transition-all duration-500 ease-in-out 
+    ${cartExpanded ? 'h-[90vh] shadow-2xl' : 'h-[160px] shadow-lg'} 
+    rounded-t-2xl overflow-hidden`}
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col h-full">
             {/* Header */}
             <div
-              className="flex items-center justify-between mb-4 cursor-pointer select-none"
+              className="relative flex items-center justify-between mb-4 cursor-pointer select-none"
               onClick={() => setCartExpanded((prev) => !prev)}
             >
+              {/* Left: Cart Label */}
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-blue-600" />
                 <span className="font-semibold text-slate-900">
                   Cart ({cart.reduce((sum, item) => sum + item.quantity, 0)} items)
                 </span>
               </div>
+
+              {/* Center: Chevron Icon (absolute center) */}
+              <ChevronDown
+                className={`absolute left-1/2 transform -translate-x-1/2 w-6 h-6 transition-transform duration-300 ${cartExpanded ? 'text-blue-600' : 'rotate-180 text-slate-500'
+                  }`}
+              />
+
+              {/* Right: Clear Button */}
               <button
                 onClick={(e) => {
                   e.stopPropagation(); // prevent toggle
                   setCart([]);
                 }}
-                className="text-red-600 hover:text-red-700 text-sm font-medium"
+                className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center gap-1"
               >
+                <Trash2 className="w-4 h-4" />
                 Clear
               </button>
             </div>
+
 
             {/* Cart Items */}
             <div
