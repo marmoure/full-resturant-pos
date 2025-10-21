@@ -447,7 +447,7 @@ const ServerView = () => {
                             {item.quantity}x {item.menuItem.name}
                           </span>
                           <span className="text-slate-900 font-medium">
-                            ${(item.price * item.quantity).toFixed(2)}
+                            DA{(item.price * item.quantity)}
                           </span>
                         </div>
                       ))}
@@ -458,7 +458,7 @@ const ServerView = () => {
                       <div className="flex justify-between items-center">
                         <span className="font-semibold text-slate-900">Total:</span>
                         <span className="text-lg font-bold text-blue-600">
-                          ${order.totalPrice.toFixed(2)}
+                          DA{order.totalPrice}
                         </span>
                       </div>
                     </div>
@@ -528,7 +528,7 @@ const ServerView = () => {
                       </span>
                     </div>
                     <p className="text-lg font-bold text-blue-600 mb-3">
-                      ${item.price}
+                      DA{item.price}
                     </p>
                     {cartItem ? (
                       <div className="flex items-center justify-between">
@@ -647,7 +647,7 @@ const ServerView = () => {
                   </span>
                   <div className="flex items-center gap-3">
                     <span className="font-semibold text-slate-900">
-                      ${(item.menuItem.price * item.quantity).toFixed(2)}
+                      DA{(item.menuItem.price * item.quantity)}
                     </span>
                     <button
                       onClick={() => removeFromCart(item.menuItem.id)}
@@ -682,7 +682,7 @@ const ServerView = () => {
                     Processing...
                   </>
                 ) : (
-                  <>Submit Order - ${calculateTotal().toFixed(2)}</>
+                  <>Submit Order - DA{calculateTotal()}</>
                 )}
               </button>
             </div>
