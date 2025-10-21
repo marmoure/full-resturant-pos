@@ -68,6 +68,7 @@ const ServerView = () => {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'create' | 'orders'>('create');
   const [cartExpanded, setCartExpanded] = useState(false);
+  useEffect(() => setCartExpanded(false), []); // always start with collapsed cart
 
 
 
@@ -251,6 +252,7 @@ const ServerView = () => {
         showToast(`Order #${response.data.orderNumber} created successfully!`, 'success');
         setCart([]);
         setTableNumber('');
+        setCartExpanded(false); // 👈 collapse cart after submit
         // Note: WebSocket will add the order to activeOrders automatically
       }
     } catch (error: any) {
@@ -620,8 +622,10 @@ const ServerView = () => {
       {/* Cart View */}
       {cart.length > 0 && (
         <div
-          className={`fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-20 transition-all duration-300 ${cartExpanded ? 'h-[90vh] pb-4' : 'max-h-[180px]'
-            } overflow-hidden`}
+          className={`fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-20 
+    transition-all duration-500 ease-in-out 
+    ${cartExpanded ? 'h-[90vh] shadow-2xl' : 'h-[160px] shadow-lg'} 
+    rounded-t-2xl overflow-hidden`}
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col h-full">
             {/* Header */}
