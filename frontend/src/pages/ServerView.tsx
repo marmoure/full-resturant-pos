@@ -7,7 +7,6 @@ import {
   LogOut,
   Plus,
   Minus,
-  Search,
   ShoppingCart,
   Trash2,
   CheckCircle,
@@ -58,7 +57,6 @@ const ServerView = () => {
   const navigate = useNavigate();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [tableNumber, setTableNumber] = useState('');
   const [loading, setLoading] = useState(false);
@@ -319,9 +317,8 @@ const ServerView = () => {
 
   // Filter menu items
   const filteredMenuItems = menuItems.filter((item) => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    return matchesCategory;
   });
 
   // Get unique categories
@@ -384,7 +381,6 @@ const ServerView = () => {
                 className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
               >
                 <LogOut className="w-4 h-4" />
-                Logout
               </button>
             </div>
           </div>
@@ -494,35 +490,22 @@ const ServerView = () => {
       {/* New Order (Menu) Section */}
       {viewMode === 'create' && (
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {/* Search and Filters */}
-          <div className="mb-6 space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search menu items..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
             {/* Category Filters */}
-            <div className="flex gap-2 overflow-x-auto pb-2">
+            <div className="flex flex-wrap gap-2">
               {categories.map((category) => (
                 <button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
-                  className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition ${selectedCategory === category
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-slate-700 hover:bg-slate-100'
+                  className={`px-4 py-2 rounded-lg font-medium transition ${selectedCategory === category
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-slate-700 hover:bg-slate-100'
                     }`}
                 >
                   {category.charAt(0).toUpperCase() + category.slice(1)}
                 </button>
               ))}
             </div>
-          </div>
+
 
           {/* Menu Items Grid */}
           {loading ? (
