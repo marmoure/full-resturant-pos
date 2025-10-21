@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { apiHelpers } from '../lib/api';
 import { useWebSocket } from '../lib/useWebSocket';
@@ -6,7 +6,6 @@ import {
   Flame,
   LogOut,
   Clock,
-  Trash2,
   CheckCircle,
   XCircle,
   Loader2,
@@ -62,6 +61,9 @@ const GrillView = () => {
   });
   const [showArchive, setShowArchive] = useState(false);
   const [fadingOrders, setFadingOrders] = useState<Set<number>>(new Set());
+  // Header visibility
+  const [showHeader, setShowHeader] = useState(true);
+  const lastScrollY = useRef(0);
 
 
 
@@ -286,10 +288,36 @@ const GrillView = () => {
     });
   };
 
+  // Header visibility
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+
+      // Ignore tiny scroll movements
+      if (Math.abs(currentY - lastScrollY.current) < 10) return;
+
+      if (currentY > lastScrollY.current && currentY > 50) {
+        // Scrolling down past 50px → hide header
+        setShowHeader(false);
+      } else if (currentY < 10) {
+        // Only show again when near the top
+        setShowHeader(true);
+      }
+
+      lastScrollY.current = currentY;
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-slate-50 pb-24">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
+      <header
+        className={`bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10 transition-transform duration-300 ${showHeader ? 'translate-y-0' : '-translate-y-full'
+          }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col gap-3">
             {/* Top row: Title + Logout */}
@@ -310,7 +338,6 @@ const GrillView = () => {
                 className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
               >
                 <LogOut className="w-4 h-4" />
-                Logout
               </button>
             </div>
 

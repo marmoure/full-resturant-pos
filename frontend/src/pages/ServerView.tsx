@@ -7,7 +7,6 @@ import {
   LogOut,
   Plus,
   Minus,
-  Search,
   ShoppingCart,
   Trash2,
   CheckCircle,
@@ -58,7 +57,6 @@ const ServerView = () => {
   const navigate = useNavigate();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [tableNumber, setTableNumber] = useState('');
   const [loading, setLoading] = useState(false);
@@ -69,6 +67,8 @@ const ServerView = () => {
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'create' | 'orders'>('create');
+  const [cartExpanded, setCartExpanded] = useState(false);
+
 
 
   // WebSocket connection
@@ -319,18 +319,44 @@ const ServerView = () => {
 
   // Filter menu items
   const filteredMenuItems = menuItems.filter((item) => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    return matchesCategory;
   });
 
   // Get unique categories
   const categories = ['all', ...Array.from(new Set(menuItems.map((item) => item.category)))];
 
+  // Header visibility logic
+  const [showHeader, setShowHeader] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+
+      // Only trigger if movement is noticeable
+      if (Math.abs(currentY - lastScrollY.current) < 10) return;
+
+      if (currentY > lastScrollY.current && currentY > 50) {
+        // Scrolling down → hide header
+        setShowHeader(false);
+      } else if (currentY < 10) {
+        // Only show header again when near top
+        setShowHeader(true);
+      }
+
+      lastScrollY.current = currentY;
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50 pb-[300px]">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
+      <header className={`bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10 transition-transform duration-300 ${showHeader ? 'translate-y-0' : '-translate-y-full'
+        }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -357,7 +383,6 @@ const ServerView = () => {
                 className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
               >
                 <LogOut className="w-4 h-4" />
-                Logout
               </button>
             </div>
           </div>
@@ -424,7 +449,7 @@ const ServerView = () => {
                             {item.quantity}x {item.menuItem.name}
                           </span>
                           <span className="text-slate-900 font-medium">
-                            ${(item.price * item.quantity).toFixed(2)}
+                            DA{(item.price * item.quantity)}
                           </span>
                         </div>
                       ))}
@@ -435,7 +460,7 @@ const ServerView = () => {
                       <div className="flex justify-between items-center">
                         <span className="font-semibold text-slate-900">Total:</span>
                         <span className="text-lg font-bold text-blue-600">
-                          ${order.totalPrice.toFixed(2)}
+                          DA{order.totalPrice}
                         </span>
                       </div>
                     </div>
@@ -467,35 +492,22 @@ const ServerView = () => {
       {/* New Order (Menu) Section */}
       {viewMode === 'create' && (
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {/* Search and Filters */}
-          <div className="mb-6 space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search menu items..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Category Filters */}
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition ${selectedCategory === category
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-slate-700 hover:bg-slate-100'
-                    }`}
-                >
-                  {category.charAt(0).toUpperCase() + category.slice(1)}
-                </button>
-              ))}
-            </div>
+          {/* Category Filters */}
+          <div className="flex flex-wrap gap-2">
+            {categories.map((category) => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`px-4 py-2 rounded-lg font-medium transition ${selectedCategory === category
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-slate-700 hover:bg-slate-100'
+                  }`}
+              >
+                {category.charAt(0).toUpperCase() + category.slice(1)}
+              </button>
+            ))}
           </div>
+
 
           {/* Menu Items Grid */}
           {loading ? (
@@ -518,7 +530,7 @@ const ServerView = () => {
                       </span>
                     </div>
                     <p className="text-lg font-bold text-blue-600 mb-3">
-                      ${item.price}
+                      DA{item.price}
                     </p>
                     {cartItem ? (
                       <div className="flex items-center justify-between">
@@ -607,10 +619,16 @@ const ServerView = () => {
 
       {/* Cart View */}
       {cart.length > 0 && (
-        // Show full cart view when items are added
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between mb-4">
+        <div
+          className={`fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-20 transition-all duration-300 ${cartExpanded ? 'h-[90vh] pb-4' : 'max-h-[180px]'
+            } overflow-hidden`}
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col h-full">
+            {/* Header */}
+            <div
+              className="flex items-center justify-between mb-4 cursor-pointer select-none"
+              onClick={() => setCartExpanded((prev) => !prev)}
+            >
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-blue-600" />
                 <span className="font-semibold text-slate-900">
@@ -618,26 +636,32 @@ const ServerView = () => {
                 </span>
               </div>
               <button
-                onClick={() => setCart([])}
+                onClick={(e) => {
+                  e.stopPropagation(); // prevent toggle
+                  setCart([]);
+                }}
                 className="text-red-600 hover:text-red-700 text-sm font-medium"
               >
-                Clear Cart
+                Clear
               </button>
             </div>
 
             {/* Cart Items */}
-            <div className="max-h-32 overflow-y-auto mb-4 space-y-2">
-              {cart.map((item) => (
+            <div
+              className={`space-y-2 overflow-y-auto flex-1 ${cartExpanded ? 'mb-4' : 'max-h-[70px]'
+                }`}
+            >
+              {cart.map((item, _idx) => (
                 <div
                   key={item.menuItem.id}
-                  className="flex items-center justify-between text-sm"
+                  className="flex items-center justify-between text-sm border-b border-slate-100 pb-1"
                 >
                   <span className="text-slate-700">
                     {item.quantity}x {item.menuItem.name}
                   </span>
                   <div className="flex items-center gap-3">
                     <span className="font-semibold text-slate-900">
-                      ${(item.menuItem.price * item.quantity).toFixed(2)}
+                      DA{item.menuItem.price * item.quantity}
                     </span>
                     <button
                       onClick={() => removeFromCart(item.menuItem.id)}
@@ -648,37 +672,48 @@ const ServerView = () => {
                   </div>
                 </div>
               ))}
+
+              {/* If not expanded and there are more than 2 items, show hint */}
+              {!cartExpanded && cart.length > 2 && (
+                <div className="text-center text-slate-500 text-xs italic">
+                  +{cart.length - 2} more items…
+                </div>
+              )}
             </div>
 
-            {/* Table Number Input */}
-            <input
-              type="text"
-              placeholder="Table number (optional)"
-              value={tableNumber}
-              onChange={(e) => setTableNumber(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+            {cartExpanded && (
+              <>
+                {/* Table Number Input */}
+                <input
+                  type="text"
+                  placeholder="Table number (optional)"
+                  value={tableNumber}
+                  onChange={(e) => setTableNumber(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
 
-            {/* Submit Button Only */}
-            <div className="flex justify-end">
-              <button
-                onClick={submitOrder}
-                disabled={submitting}
-                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>Submit Order - ${calculateTotal().toFixed(2)}</>
-                )}
-              </button>
-            </div>
+                {/* Submit Button */}
+                <button
+                  onClick={submitOrder}
+                  disabled={submitting}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>Submit Order — DA{calculateTotal()}</>
+                  )}
+                </button>
+              </>
+            )}
+
           </div>
         </div>
       )}
+
 
       {/* Cancel Confirmation Modal */}
       {showCancelModal && (
