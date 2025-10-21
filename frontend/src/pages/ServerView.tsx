@@ -630,12 +630,11 @@ const ServerView = () => {
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col h-full">
             {/* Header */}
-            {/* Header */}
             <div
-              className="flex items-center justify-between mb-4 cursor-pointer select-none"
+              className="relative flex items-center justify-between mb-4 cursor-pointer select-none"
               onClick={() => setCartExpanded((prev) => !prev)}
             >
-              {/* Left side — Cart label */}
+              {/* Left: Cart Label */}
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-blue-600" />
                 <span className="font-semibold text-slate-900">
@@ -643,13 +642,13 @@ const ServerView = () => {
                 </span>
               </div>
 
-              {/* Middle — Expand/Collapse Icon */}
+              {/* Center: Chevron Icon (absolute center) */}
               <ChevronDown
-                className={`w-6 h-6 text-slate-600 transform transition-transform duration-300 mx-4 ${cartExpanded ? 'rotate-0 text-blue-600' : 'rotate-180 text-slate-500'
+                className={`absolute left-1/2 transform -translate-x-1/2 w-6 h-6 transition-transform duration-300 ${cartExpanded ? 'text-blue-600' : 'rotate-180 text-slate-500'
                   }`}
               />
 
-              {/* Right side — Clear button */}
+              {/* Right: Clear Button */}
               <button
                 onClick={(e) => {
                   e.stopPropagation(); // prevent toggle
