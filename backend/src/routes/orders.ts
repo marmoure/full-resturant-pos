@@ -311,6 +311,55 @@ router.get('/grill', authenticateToken, requireRole(['GRILL_COOK', 'OWNER']), as
   }
 });
 
+// GET /orders/kitchen - Get all active kitchen orders (non-grill items)
+router.get('/kitchen', authenticateToken, requireRole(['KITCHEN_STAFF', 'OWNER']), async (req: AuthRequest, res: Response) => {
+  try {
+    // Fetch all OPEN orders that have kitchen items (station = 'kitchen')
+    const orders = await prisma.order.findMany({
+      where: {
+        status: 'OPEN',
+        items: {
+          some: {
+            menuItem: {
+              station: 'kitchen',
+            },
+          },
+        },
+      },
+      include: {
+        items: {
+          where: {
+            menuItem: {
+              station: 'kitchen',
+            },
+          },
+          include: {
+            menuItem: true,
+          },
+        },
+        server: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    res.json({
+      status: 'success',
+      data: orders,
+    });
+  } catch (error) {
+    console.error('Error fetching kitchen orders:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch kitchen orders',
+    });
+  }
+});
+
 // GET /orders/:id - Get single order
 router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
@@ -609,6 +658,31 @@ router.delete('/:id', authenticateToken, requireRole(['SERVER']), async (req: Au
     res.status(500).json({
       status: 'error',
       message: 'Failed to delete order',
+    });
+  }
+});
+
+// DELETE /orders/kitchen - Clear all kitchen orders (mark as cleared)
+router.delete('/kitchen', authenticateToken, requireRole(['KITCHEN_STAFF', 'OWNER']), async (req: AuthRequest, res: Response) => {
+  try {
+    // This endpoint broadcasts a kitchen:clear event to all connected clients
+    // The actual clearing is handled on the frontend (local state management)
+    // This is similar to how the grill view handles clearing
+    
+    console.info('🧹 Kitchen orders cleared by kitchen staff');
+
+    // Broadcast kitchen clear event to all connected clients
+    broadcast(WS_EVENTS.KITCHEN_CLEAR, { timestamp: new Date().toISOString() });
+
+    res.json({
+      status: 'success',
+      message: 'Kitchen orders cleared successfully',
+    });
+  } catch (error) {
+    console.error('Error clearing kitchen orders:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to clear kitchen orders',
     });
   }
 });
