@@ -262,6 +262,45 @@ router.get('/active', authenticateToken, requireRole(['SERVER']), async (req: Au
   }
 });
 
+// GET /orders/cashier - Get all active orders for cashier (OPEN and SERVED)
+router.get('/cashier', authenticateToken, requireRole(['CASHIER', 'OWNER']), async (req: AuthRequest, res: Response) => {
+  try {
+    // Fetch all OPEN and SERVED orders for cashier to process
+    const orders = await prisma.order.findMany({
+      where: {
+        status: {
+          in: ['OPEN', 'SERVED'],
+        },
+      },
+      include: {
+        items: {
+          include: {
+            menuItem: true,
+          },
+        },
+        server: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    res.json({
+      status: 'success',
+      data: orders,
+    });
+  } catch (error) {
+    console.error('Error fetching cashier orders:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch cashier orders',
+    });
+  }
+});
+
 // GET /orders/grill - Get all active grill orders
 router.get('/grill', authenticateToken, requireRole(['GRILL_COOK', 'OWNER']), async (req: AuthRequest, res: Response) => {
   try {
@@ -483,6 +522,92 @@ router.patch('/:id/served', authenticateToken, requireRole(['SERVER']), async (r
     res.status(500).json({
       status: 'error',
       message: 'Failed to mark order as served',
+    });
+  }
+});
+
+// PATCH /orders/:id/checkout - Complete order checkout (cashier only)
+router.patch('/:id/checkout', authenticateToken, requireRole(['CASHIER', 'OWNER']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.user) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'User not authenticated',
+      });
+    }
+
+    // Find the order
+    const existingOrder = await prisma.order.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        items: {
+          include: {
+            menuItem: true,
+          },
+        },
+        server: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    if (!existingOrder) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Order not found',
+      });
+    }
+
+    // Only allow completing OPEN or SERVED orders
+    if (existingOrder.status !== 'OPEN' && existingOrder.status !== 'SERVED') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Only OPEN or SERVED orders can be completed',
+      });
+    }
+
+    // Update order status to COMPLETED
+    const completedOrder = await prisma.order.update({
+      where: { id: parseInt(id) },
+      data: { 
+        status: 'COMPLETED',
+        updatedAt: new Date(),
+      },
+      include: {
+        items: {
+          include: {
+            menuItem: true,
+          },
+        },
+        server: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    console.info(`✅ Order completed: #${completedOrder.orderNumber} by cashier ${req.user.username}`);
+
+    // Broadcast order completed event
+    broadcast(WS_EVENTS.ORDER_COMPLETED, completedOrder);
+
+    res.json({
+      status: 'success',
+      message: 'Order completed successfully',
+      data: completedOrder,
+    });
+  } catch (error) {
+    console.error('Error completing order:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to complete order',
     });
   }
 });
